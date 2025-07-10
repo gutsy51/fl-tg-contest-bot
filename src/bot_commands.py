@@ -16,65 +16,68 @@ from src.config import get_config_texts
 load_dotenv('config/.env')
 
 # Load message texts from config file.
+PARSE_MODE = 'HTML'
 TEXTS = get_config_texts(
     file_path=getenv('CONFIG_PATH'),
     required_keys={
-        'greeting',
-        'success_initial',
-        'enter_new_text',
-        'success_update',
-        'btn_change',
+        'handle_start',
+        'handle_draft',
+        'handle_edit',
+        'handle_submit',
+        'btn_edit',
+        'btn_submit'
     }
 )
 
 # Main router for all commands.
 router = Router()
 
-# Update button keyboard.
-keyboard_update = InlineKeyboardMarkup(inline_keyboard=[[
-    InlineKeyboardButton(text=TEXTS['btn_change'], callback_data='edit_answer')
+# 'Submit' or 'Edit' keyboard.
+kb_edit = InlineKeyboardMarkup(inline_keyboard=[[
+    InlineKeyboardButton(text=TEXTS['btn_submit'], callback_data='btn_submit'),
+    InlineKeyboardButton(text=TEXTS['btn_edit'], callback_data='btn_edit'),
 ]])
 
 
 class Form(StatesGroup):
     """Bot states."""
 
-    waiting_for_initial_text = State()
-    waiting_for_edit_text = State()
+    waiting_for_draft = State()
+    waiting_for_decision = State()
 
 
-@router.message(Command("start"))
-async def start_handler(message: types.Message, state: FSMContext):
+@router.message(Command('start'))
+async def handle_start(message: types.Message, state: FSMContext):
     """Start the bot and wait for the initial text."""
 
-    await message.answer(TEXTS['greeting'])
-    await state.set_state(Form.waiting_for_initial_text)
+    await message.answer(TEXTS['handle_start'], parse_mode=PARSE_MODE)
+    await state.set_state(Form.waiting_for_draft)
 
 
-@router.message(Form.waiting_for_initial_text)
-async def handle_initial_text(message: types.Message, state: FSMContext):
-    """Get initial text, save it and send edit-button."""
+@router.message(Form.waiting_for_draft)
+async def handle_draft(message: types.Message, state: FSMContext):
+    """Get draft text, wait for the decision to edit or send."""
 
-    # save_answer(message)  # Save user & text to the sheet.
+    await message.answer(TEXTS['handle_draft'],
+                         parse_mode=PARSE_MODE,
+                         reply_markup=kb_edit)
+    await state.set_state(Form.waiting_for_decision)
 
-    await message.answer(TEXTS['success_initial'], reply_markup=keyboard_update)
-    await state.set_state(Form.waiting_for_edit_text)
 
+@router.callback_query(F.data == 'btn_edit')
+async def handle_edit(callback: CallbackQuery, state: FSMContext):
+    """Handle the 'btn_edit' button and wait for the new text."""
 
-@router.callback_query(F.data == "edit_answer")
-async def handle_edit_button(callback: CallbackQuery, state: FSMContext):
-    """Handle the "edit_answer" button and wait for the new text."""
-
-    await callback.message.answer(TEXTS['enter_new_text'])
-    await state.set_state(Form.waiting_for_edit_text)
+    await callback.message.answer(TEXTS['handle_edit'], parse_mode=PARSE_MODE)
+    await state.set_state(Form.waiting_for_draft)
     await callback.answer()
 
 
-@router.message(Form.waiting_for_edit_text)
-async def handle_edited_text(message: types.Message, state: FSMContext):
-    """Update the text and send a confirmation message."""
+@router.callback_query(F.data == 'btn_submit')
+async def handle_submit(callback: CallbackQuery, state: FSMContext):
+    """Handle the 'btn_submit' button and save the text."""
 
-    # save_answer(message, update=True)  # Update user & text in the sheet.
+    # save_answer(message)  # Save user & text in the sheet.
 
-    await message.answer(TEXTS['success_update'], reply_markup=keyboard_update)
-    await state.set_state(Form.waiting_for_edit_text)
+    await callback.message.answer(TEXTS['handle_submit'], parse_mode=PARSE_MODE)
+    await callback.answer()
