@@ -1,4 +1,5 @@
 from os import getenv
+from datetime import datetime
 
 from aiogram import Router, types, F
 from aiogram.types import (InlineKeyboardMarkup,
@@ -9,7 +10,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.filters import Command
 from dotenv import load_dotenv
 
-from src.sheets import *
+from src.sheets import SheetAccount
 from src.config import get_config_texts
 
 
@@ -25,17 +26,24 @@ TEXTS = get_config_texts(
         'handle_edit',
         'handle_submit',
         'btn_edit',
-        'btn_submit'
-    }
+        'btn_submit',
+        'btn_emoji1',
+        'btn_emoji2',
+    },
 )
 
-# Main router for all commands.
+# Inits.
 router = Router()
+sheet_account = SheetAccount()
 
-# 'Submit' or 'Edit' keyboard.
+# Keyboards
 kb_edit = InlineKeyboardMarkup(inline_keyboard=[[
     InlineKeyboardButton(text=TEXTS['btn_submit'], callback_data='btn_submit'),
     InlineKeyboardButton(text=TEXTS['btn_edit'], callback_data='btn_edit'),
+]])
+kb_stickers = InlineKeyboardMarkup(inline_keyboard=[[
+    InlineKeyboardButton(text=TEXTS['btn_emoji1'], callback_data='btn_emoji1'),
+    InlineKeyboardButton(text=TEXTS['btn_emoji2'], callback_data='btn_emoji2'),
 ]])
 
 
@@ -58,6 +66,7 @@ async def handle_start(message: types.Message, state: FSMContext):
 async def handle_draft(message: types.Message, state: FSMContext):
     """Get draft text, wait for the decision to edit or send."""
 
+    await state.update_data(text=message.text)
     await message.answer(TEXTS['handle_draft'],
                          parse_mode=PARSE_MODE,
                          reply_markup=kb_edit)
@@ -77,7 +86,16 @@ async def handle_edit(callback: CallbackQuery, state: FSMContext):
 async def handle_submit(callback: CallbackQuery, state: FSMContext):
     """Handle the 'btn_submit' button and save the text."""
 
-    # save_answer(message)  # Save user & text in the sheet.
+    # Save answer in the sheet.
+    data = await state.get_data()
+    sheet_account.save_answer(
+        time=datetime.now(),
+        user_id=callback.from_user.id,
+        user_name=callback.from_user.username or '-',
+        text=data.get('text')
+    )
 
-    await callback.message.answer(TEXTS['handle_submit'], parse_mode=PARSE_MODE)
+    await callback.message.answer(TEXTS['handle_submit'], parse_mode=PARSE_MODE,
+                                  reply_markup=kb_stickers)
+    await state.clear()
     await callback.answer()
