@@ -41,10 +41,10 @@ kb_edit = InlineKeyboardMarkup(inline_keyboard=[[
     InlineKeyboardButton(text=TEXTS['btn_submit'], callback_data='btn_submit'),
     InlineKeyboardButton(text=TEXTS['btn_edit'], callback_data='btn_edit'),
 ]])
-kb_stickers = InlineKeyboardMarkup(inline_keyboard=[[
-    InlineKeyboardButton(text=TEXTS['btn_emoji1'], callback_data='btn_emoji1'),
-    InlineKeyboardButton(text=TEXTS['btn_emoji2'], callback_data='btn_emoji2'),
-]])
+kb_stickers = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text=TEXTS['btn_emoji1'], url=TEXTS['url_emoji1'])],
+    [InlineKeyboardButton(text=TEXTS['btn_emoji2'], url=TEXTS['url_emoji2'])],
+])
 
 
 class Form(StatesGroup):
@@ -52,6 +52,20 @@ class Form(StatesGroup):
 
     waiting_for_draft = State()
     waiting_for_decision = State()
+    done = State()
+
+
+@router.callback_query(Form.done)
+@router.message(Form.done)
+async def handle_done(event: types.Message | CallbackQuery):
+    """Handle any action after the algorithm is completed."""
+
+    if isinstance(event, CallbackQuery):
+        await event.message.answer(TEXTS['handle_done'], parse_mode=PARSE_MODE)
+        await event.answer()
+    else:
+        await event.answer(TEXTS['handle_done'], parse_mode=PARSE_MODE)
+
 
 
 @router.message(Command('start'))
@@ -97,5 +111,5 @@ async def handle_submit(callback: CallbackQuery, state: FSMContext):
 
     await callback.message.answer(TEXTS['handle_submit'], parse_mode=PARSE_MODE,
                                   reply_markup=kb_stickers)
-    await state.clear()
+    await state.set_state(Form.done)
     await callback.answer()
