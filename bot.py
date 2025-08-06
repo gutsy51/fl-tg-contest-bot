@@ -10,7 +10,12 @@ from src.bot_commands import router as main_router
 
 # Logging and environment variables.
 load_dotenv('config/.env')
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    filename=getenv('LOGS_PATH'),
+    encoding='utf-8',
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+)
 
 # Bot object.
 bot = Bot(token=getenv('TELEGRAM_BOT_TOKEN'))
