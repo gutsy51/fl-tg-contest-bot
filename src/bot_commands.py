@@ -125,7 +125,11 @@ async def handle_start(message: types.Message, state: FSMContext):
         await message.answer(TEXTS['handle_done'], parse_mode=PARSE_MODE)
         return
 
-    await message.answer(TEXTS['handle_start'], parse_mode=PARSE_MODE)
+    await message.answer(
+        TEXTS['handle_start'],
+        parse_mode=PARSE_MODE,
+        disable_web_page_preview=True,
+    )
     await state.set_state(Form.waiting_for_draft)
 
 
@@ -134,9 +138,12 @@ async def handle_draft(message: types.Message, state: FSMContext):
     """Get draft text, wait for the decision to edit or send."""
 
     await state.update_data(text=message.text)
-    await message.answer(TEXTS['handle_draft'],
-                         parse_mode=PARSE_MODE,
-                         reply_markup=kb_edit)
+    await message.answer(
+        TEXTS['handle_draft'],
+        parse_mode=PARSE_MODE,
+        disable_web_page_preview=True,
+        reply_markup=kb_edit,
+    )
     await state.set_state(Form.waiting_for_decision)
 
 
@@ -170,7 +177,11 @@ async def handle_submit(callback: CallbackQuery, state: FSMContext):
         save_completed_user(callback.from_user.id)
         completed_users.add(callback.from_user.id)
 
-    await callback.message.answer(TEXTS['handle_submit'], parse_mode=PARSE_MODE,
-                                  reply_markup=kb_stickers)
+    await callback.message.answer(
+        TEXTS['handle_submit'],
+        parse_mode=PARSE_MODE,
+        disable_web_page_preview=True,
+        reply_markup=kb_stickers,
+    )
     await state.set_state(Form.done)
     await callback.answer()
